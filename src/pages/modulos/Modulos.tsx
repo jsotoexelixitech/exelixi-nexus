@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { modulesApi, configApi, companiesApi, type ConfigPanelMeta } from '../../api';
-import { Plus, RefreshCw, Power, Pencil, X as XIcon, Settings2, ExternalLink, Shield, FileText, LayoutList, CreditCard, Plug } from 'lucide-react';
+import { Plus, RefreshCw, Power, Pencil, X as XIcon, Settings2, ExternalLink, Shield, FileText, LayoutList, CreditCard, Plug, ClipboardList } from 'lucide-react';
 import { Spinner, ConfirmDialog, Modal } from '../../components/ui';
 import ModuloIntegracionPanel from '../../components/ModuloIntegracionPanel';
 import { PASOS_RAPIDOS } from '../../lib/moduloIntegracion';
@@ -83,9 +83,18 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     return meta;
   };
 
-  const buildConfigUrl = async (
+  const isEmisionSub = (submodulo: any): boolean => {
+    const n = String(submodulo?.nombre || '').toLowerCase();
+    return n.includes('emision') || n.includes('emisión');
+  };
+
+  const findEmisionSub = (mod: any): any | null =>
+    (mod?.submodulos || []).find((s: any) => s.url && s.activo && isEmisionSub(s)) ?? null;
+
+  const buildPanelUrl = async (
     submodulo: any,
     productoName: string,
+    panel: 'config' | 'revision' = 'config',
   ): Promise<string | null> => {
     const nombreSub = String(submodulo.nombre || '').toLowerCase();
     let moduloKey = 'ocr';
@@ -96,6 +105,9 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
 
     const rawProduct = String(productoName || '').toLowerCase();
     const product = rawProduct.includes('funerar') ? 'funerario' : 'rcv';
+    if (panel === 'revision' && (product !== 'funerario' || moduloKey !== 'emision')) {
+      return null;
+    }
     const meta = buildConfigMeta();
 
     const empresaId = Number(configEmpresaId) > 0 ? Number(configEmpresaId) : 1;
@@ -121,7 +133,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     };
     const prefix = PREFIX[moduloKey] ?? '/ocr';
     const url = new URL(submodulo.url, window.location.origin);
-    url.pathname = `${prefix}/config`;
+    url.pathname = panel === 'revision' ? `${prefix}/revision` : `${prefix}/config`;
     url.search = '';
     url.searchParams.set('product', product);
     url.searchParams.set('token', token);
@@ -134,23 +146,34 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     return url.toString();
   };
 
-  const abrirParametrizador = async (
+  const abrirPanel = async (
     submodulo: any,
     productoName: string,
     mode: 'open' | 'copy' = 'open',
+    panel: 'config' | 'revision' = 'config',
   ) => {
-    if (!submodulo.url) { toast('Este submódulo no tiene URL configurada', 'error'); return; }
+    if (!submodulo?.url) { toast('Este submódulo no tiene URL configurada', 'error'); return; }
     try {
       setLoadingToken(submodulo.id);
-      const href = await buildConfigUrl(submodulo, productoName);
+      const href = await buildPanelUrl(submodulo, productoName, panel);
       if (!href) {
-        toast('No se pudo generar el token de acceso', 'error');
+        toast(
+          panel === 'revision'
+            ? 'La revisión técnica solo aplica a Emisión del módulo funerario'
+            : 'No se pudo generar el token de acceso',
+          'error',
+        );
         return;
       }
       setLastConfigUrl(href);
       if (mode === 'copy') {
         await navigator.clipboard.writeText(href);
-        toast('URL del configurador copiada (válida 1 h)', 'success');
+        toast(
+          panel === 'revision'
+            ? 'URL de revisión técnica copiada (válida 1 h). Compártela con QA'
+            : 'URL del configurador copiada (válida 1 h)',
+          'success',
+        );
       } else {
         window.open(href, '_blank');
       }
@@ -160,6 +183,18 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
       setLoadingToken(null);
     }
   };
+
+  const abrirParametrizador = (
+    submodulo: any,
+    productoName: string,
+    mode: 'open' | 'copy' = 'open',
+  ) => abrirPanel(submodulo, productoName, mode, 'config');
+
+  const abrirRevisionTecnica = (
+    submodulo: any,
+    productoName: string,
+    mode: 'open' | 'copy' = 'open',
+  ) => abrirPanel(submodulo, productoName, mode, 'revision');
 
   const toggleStatus = async (mod: any) => {
     try {
@@ -321,8 +356,8 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
               </thead>
               <tbody>
                 {filtered.map(m => {
-                  // Determinar el producto del módulo por nombre
                   const productoMod = m.nombre?.toLowerCase().includes('funerar') ? 'funerario' : 'rcv';
+                  const emisionSub = productoMod === 'funerario' ? findEmisionSub(m) : null;
                   return (
                   <React.Fragment key={m.id}>
                     <tr className="hover:bg-slate-50 transition-colors">
@@ -387,13 +422,27 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                         {!(m.submodulos || []).some((s: any) => s.url && s.activo) ? (
                           <span className="text-[10px] text-slate-400 italic px-2 py-1">Sin submódulos configurables</span>
                         ) : (
-                          <button
-                            onClick={() => setParametrizarMod(m)}
-                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-600 text-white text-xs font-bold rounded-2xl shadow-md shadow-indigo-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5"
-                          >
-                            <Settings2 size={14} />
-                            Parametrizar
-                          </button>
+                          <div className="flex flex-col items-center gap-2">
+                            <button
+                              onClick={() => setParametrizarMod(m)}
+                              className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-indigo-600 to-violet-600 text-white text-xs font-bold rounded-2xl shadow-md shadow-indigo-500/30 transition-all hover:shadow-lg hover:-translate-y-0.5"
+                            >
+                              <Settings2 size={14} />
+                              Parametrizar
+                            </button>
+                            {emisionSub && (
+                              <button
+                                type="button"
+                                disabled={loadingToken === emisionSub.id}
+                                onClick={() => abrirRevisionTecnica(emisionSub, 'funerario', 'copy')}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-fuchsia-50 text-fuchsia-700 text-[11px] font-bold rounded-xl border border-fuchsia-200 hover:bg-fuchsia-100 disabled:opacity-50"
+                                title="Copia el enlace de revisión técnica (válido 1 h) para QA"
+                              >
+                                {loadingToken === emisionSub.id ? <Spinner size={12} /> : <ClipboardList size={14} />}
+                                Copiar revisión técnica
+                              </button>
+                            )}
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -707,7 +756,11 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                   </div>
                 )}
                 {lastConfigUrl && (
-                  <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                      Último enlace generado (válido 1 h — pegar a QA si es revisión)
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
                       readOnly
                       className="flex-1 text-[11px] font-mono border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-600"
@@ -723,6 +776,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                     >
                       Copiar de nuevo
                     </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -799,6 +853,28 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                         >
                           Copiar URL para el canal
                         </button>
+                        {productoMod === 'funerario' && isEmisionSub(sub) && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={loadingToken === sub.id}
+                              onClick={() => abrirRevisionTecnica(sub, productoMod, 'open')}
+                              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm bg-gradient-to-r from-fuchsia-600 to-violet-600 shadow-fuchsia-500/20 hover:shadow-lg transition-all disabled:opacity-50"
+                            >
+                              {loadingToken === sub.id ? <Spinner size={16} /> : <ClipboardList size={16} />}
+                              Revisión técnica
+                              <ExternalLink size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={loadingToken === sub.id}
+                              onClick={() => abrirRevisionTecnica(sub, productoMod, 'copy')}
+                              className="w-full py-2 rounded-xl text-xs font-bold border border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:bg-white disabled:opacity-50"
+                            >
+                              Copiar URL de revisión (QA)
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
