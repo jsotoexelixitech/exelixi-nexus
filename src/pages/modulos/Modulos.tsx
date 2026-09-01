@@ -442,7 +442,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                                 disabled={loadingToken === emisionSub.id}
                                 onClick={() => abrirRevisionTecnica(emisionSub, 'funerario', 'copy')}
                                 className="inline-flex items-center gap-2 px-4 py-2 bg-fuchsia-50 text-fuchsia-700 text-[11px] font-bold rounded-xl border border-fuchsia-200 hover:bg-fuchsia-100 disabled:opacity-50"
-                                title="Copia el enlace de revisión técnica (válido 1 h) para QA"
+                                title="Copia el enlace de revisión técnica (válido 12 h; se renueva con la pestaña abierta)"
                               >
                                 {loadingToken === emisionSub.id ? <Spinner size={12} /> : <ClipboardList size={14} />}
                                 Copiar revisión técnica
@@ -764,7 +764,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                 {lastConfigUrl && (
                   <div className="space-y-1">
                     <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                      Último enlace generado (válido 1 h — pegar a QA si es revisión)
+                      Último enlace generado (revisión 12 h / configurador 1 h)
                     </p>
                     <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
                     <input
