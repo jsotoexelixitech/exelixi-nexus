@@ -177,7 +177,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
         toast(
           panel === 'revision'
             ? 'URL de revisión técnica copiada (válida 12 h; se renueva sola con la pestaña abierta)'
-            : 'URL del configurador copiada (válida 1 h)',
+            : 'URL del parametrizador copiada (válida 12 h; se renueva sola con la pestaña abierta)',
           'success',
         );
       } else {
