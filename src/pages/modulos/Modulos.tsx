@@ -114,10 +114,16 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     const empRow = empresas.find((e: any) => Number(e.id) === empresaId);
     const empresaNombreLocal =
       String(empRow?.nombre || empRow?.name || '').trim() || `Empresa ${empresaId}`;
-    const response = await configApi.generarToken(empresaId, product, moduloKey, {
-      ...meta,
-      empresaNombre: empresaNombreLocal,
-    });
+    const response = await configApi.generarToken(
+      empresaId,
+      product,
+      moduloKey,
+      {
+        ...meta,
+        empresaNombre: empresaNombreLocal,
+      },
+      panel,
+    );
     const token = response.data?.data?.token ?? response.data?.token;
     const nombreFromApi =
       response.data?.data?.empresaNombre ?? response.data?.empresaNombre;
@@ -170,7 +176,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
         await navigator.clipboard.writeText(href);
         toast(
           panel === 'revision'
-            ? 'URL de revisión técnica copiada (válida 1 h). Compártela con QA'
+            ? 'URL de revisión técnica copiada (válida 12 h; se renueva sola con la pestaña abierta)'
             : 'URL del configurador copiada (válida 1 h)',
           'success',
         );
