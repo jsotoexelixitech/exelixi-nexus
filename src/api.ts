@@ -95,10 +95,11 @@ export const configApi = {
     producto: string,
     modulo: string,
     meta?: ConfigPanelMeta,
-    panel: 'config' | 'revision' = 'config',
+    panel: 'config' | 'revision' | 'preguntas' = 'config',
   ) => {
     const params = new URLSearchParams();
     if (panel === 'revision') params.set('panel', 'revision');
+    else if (panel === 'preguntas') params.set('panel', 'preguntas');
     if (meta) {
       for (const [k, v] of Object.entries(meta)) {
         if (v != null && String(v).trim() !== '') params.set(k, String(v).trim());

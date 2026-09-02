@@ -94,7 +94,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
   const buildPanelUrl = async (
     submodulo: any,
     productoName: string,
-    panel: 'config' | 'revision' = 'config',
+    panel: 'config' | 'revision' | 'preguntas' = 'config',
   ): Promise<string | null> => {
     const nombreSub = String(submodulo.nombre || '').toLowerCase();
     let moduloKey = 'ocr';
@@ -106,6 +106,9 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     const rawProduct = String(productoName || '').toLowerCase();
     const product = rawProduct.includes('funerar') ? 'funerario' : 'rcv';
     if (panel === 'revision' && (product !== 'funerario' || moduloKey !== 'emision')) {
+      return null;
+    }
+    if (panel === 'preguntas' && (product !== 'funerario' || moduloKey !== 'emision')) {
       return null;
     }
     const meta = buildConfigMeta();
@@ -139,7 +142,12 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     };
     const prefix = PREFIX[moduloKey] ?? '/ocr';
     const url = new URL(submodulo.url, window.location.origin);
-    url.pathname = panel === 'revision' ? `${prefix}/revision` : `${prefix}/config`;
+    url.pathname =
+      panel === 'revision'
+        ? `${prefix}/revision`
+        : panel === 'preguntas'
+          ? `${prefix}/config/preguntas`
+          : `${prefix}/config`;
     url.search = '';
     url.searchParams.set('product', product);
     url.searchParams.set('token', token);
@@ -156,7 +164,7 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     submodulo: any,
     productoName: string,
     mode: 'open' | 'copy' = 'open',
-    panel: 'config' | 'revision' = 'config',
+    panel: 'config' | 'revision' | 'preguntas' = 'config',
   ) => {
     if (!submodulo?.url) { toast('Este submódulo no tiene URL configurada', 'error'); return; }
     try {
@@ -166,7 +174,9 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
         toast(
           panel === 'revision'
             ? 'La revisión técnica solo aplica a Emisión del módulo funerario'
-            : 'No se pudo generar el token de acceso',
+            : panel === 'preguntas'
+              ? 'El parametrizador de preguntas solo aplica a Emisión funerario'
+              : 'No se pudo generar el token de acceso',
           'error',
         );
         return;
@@ -177,7 +187,9 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
         toast(
           panel === 'revision'
             ? 'URL de revisión técnica copiada (válida 12 h; se renueva sola con la pestaña abierta)'
-            : 'URL del parametrizador copiada (válida 12 h; se renueva sola con la pestaña abierta)',
+            : panel === 'preguntas'
+              ? 'URL del cuestionario copiada (válida 365 días; se renueva con la pestaña abierta)'
+              : 'URL del parametrizador copiada (válida 12 h; se renueva sola con la pestaña abierta)',
           'success',
         );
       } else {
@@ -195,6 +207,12 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     productoName: string,
     mode: 'open' | 'copy' = 'open',
   ) => abrirPanel(submodulo, productoName, mode, 'config');
+
+  const abrirParametrizadorPreguntas = (
+    submodulo: any,
+    productoName: string,
+    mode: 'open' | 'copy' = 'open',
+  ) => abrirPanel(submodulo, productoName, mode, 'preguntas');
 
   const abrirRevisionTecnica = (
     submodulo: any,
@@ -861,6 +879,24 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
                         </button>
                         {productoMod === 'funerario' && isEmisionSub(sub) && (
                           <>
+                            <button
+                              type="button"
+                              disabled={loadingToken === sub.id}
+                              onClick={() => abrirParametrizadorPreguntas(sub, productoMod, 'open')}
+                              className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-bold text-sm bg-gradient-to-r from-indigo-600 to-blue-600 shadow-indigo-500/20 hover:shadow-lg transition-all disabled:opacity-50"
+                            >
+                              {loadingToken === sub.id ? <Spinner size={16} /> : <ClipboardList size={16} />}
+                              Solo preguntas salud
+                              <ExternalLink size={16} />
+                            </button>
+                            <button
+                              type="button"
+                              disabled={loadingToken === sub.id}
+                              onClick={() => abrirParametrizadorPreguntas(sub, productoMod, 'copy')}
+                              className="w-full py-2 rounded-xl text-xs font-bold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-white disabled:opacity-50"
+                            >
+                              Copiar URL cuestionario (365 días)
+                            </button>
                             <button
                               type="button"
                               disabled={loadingToken === sub.id}
