@@ -1,30 +1,21 @@
 /** Prefijo público HTTPS del admin (Apache `/admin/` → vite en :5200/). */
 const PROD_PUBLIC_PREFIX = '/admin';
 
-/** Base relativa Vite (`./`) usada con Apache strip en cierrelmds. */
-function isApacheRelativeBase(base: string): boolean {
-  return base === './' || base === '.';
-}
-
 /**
- * QA / acceso directo IP:puerto (sin prefijo `/admin/`).
- * - `VITE_APP_BASE=/` → rutas en `/`
- * - `VITE_DIRECT_ACCESS=1` → fuerza modo directo aunque base sea `./`
+ * Solo GCIA / IP:puerto (`VITE_DIRECT_ACCESS=1` o `VITE_APP_BASE=/`).
+ * No usar `import.meta.env.BASE_URL === '/'`: Vite con `base: './'` inyecta `/`
+ * y el admin de QA acaba pidiendo `/api` y `/logo-dark-bg.png` (404 Apache).
  */
 function isDirectDeploy(): boolean {
   const flag = import.meta.env.VITE_DIRECT_ACCESS;
   if (flag === '1' || flag === 'true') return true;
-  const base = import.meta.env.BASE_URL ?? '/';
-  return base === '/' || base === '';
+  return String(import.meta.env.VITE_APP_BASE ?? '').trim() === '/';
 }
 
 function normalizedBase(): string {
   if (isDirectDeploy()) return '/';
-  const base = import.meta.env.BASE_URL ?? '/';
-  if (isApacheRelativeBase(base)) {
-    return import.meta.env.PROD ? `${PROD_PUBLIC_PREFIX}/` : '/';
-  }
-  return base.replace(/\/?$/, '/');
+  if (import.meta.env.PROD) return `${PROD_PUBLIC_PREFIX}/`;
+  return '/';
 }
 
 /** Base URL del admin (Vite `base`). Ej. `/admin/` → API en `/admin/api`. */
@@ -35,18 +26,8 @@ export function moduleApiBase(): string {
 /** basename para react-router (sin barra final). Nunca `./` ni `/.`. */
 export function routerBasename(): string {
   if (isDirectDeploy()) return '';
-
-  const base = import.meta.env.BASE_URL ?? '/';
-  if (isApacheRelativeBase(base)) {
-    return import.meta.env.PROD ? PROD_PUBLIC_PREFIX : '';
-  }
-  if (base === '/') return '';
-
-  const trimmed = base.replace(/\/$/, '');
-  // BASE_URL mal formado (p. ej. `/.`) — evita Router basename="/. "
-  if (trimmed === '/.' || trimmed === '.' || trimmed === './') return '';
-
-  return trimmed;
+  if (import.meta.env.PROD) return PROD_PUBLIC_PREFIX;
+  return '';
 }
 
 /** Archivo en `public/` respetando prefijo (ej. `/admin/logo-dark-bg.png`). */
