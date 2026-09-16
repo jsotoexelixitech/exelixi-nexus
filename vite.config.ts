@@ -31,6 +31,9 @@ export default defineConfig(({ mode }) => {
   const directAccess =
     env.VITE_DIRECT_ACCESS === '1' || env.VITE_DIRECT_ACCESS === 'true';
   const apiTarget = env.VITE_API_URL || 'http://127.0.0.1:3092';
+  /** QA/cierrelmds Apache: `/admin`. GCIA o `npm run dev`: vacío. */
+  const adminPublicBase =
+    mode === 'production' && !directAccess ? '/admin' : '';
 
   const proxy = prefixDevProxy(base, {
     '/api': { target: apiTarget, changeOrigin: true },
@@ -38,6 +41,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    define: {
+      __NEXUS_ADMIN_BASE__: JSON.stringify(adminPublicBase),
+    },
     plugins: [react(), adminPublicBaseHref(mode, base, directAccess)],
     server: {
       port: 5200,
