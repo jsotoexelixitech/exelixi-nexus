@@ -143,14 +143,11 @@ export default function Modulos({ toast }: { toast: (m: string, t: 'success' | '
     const prefix = PREFIX[moduloKey] ?? '/ocr';
     const url = new URL(submodulo.url, window.location.origin);
     url.pathname =
-      panel === 'revision'
-        ? `${prefix}/revision`
-        : panel === 'preguntas'
-          ? `${prefix}/config/preguntas`
-          : `${prefix}/config`;
+      panel === 'revision' ? `${prefix}/revision` : `${prefix}/config`;
     url.search = '';
     url.searchParams.set('product', product);
     url.searchParams.set('token', token);
+    if (panel === 'preguntas') url.searchParams.set('view', 'preguntas');
     url.searchParams.set('empresaId', String(empresaId));
     url.searchParams.set('empresaNombre', nombreFinal);
     url.searchParams.set('canal', meta.canal || 'default');
