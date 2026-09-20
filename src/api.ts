@@ -51,6 +51,9 @@ export const companiesApi = {
   toggleSubmodule: (d: { empresaId: number; submoduloId: number; active: boolean }) => api.post('/companies/toggle-submodule', d),
   generateApiKey: (id: number) => api.post(`/companies/${id}/generate-api-key`),
   obtenerTokensConexion: (id: number) => api.get(`/companies/${id}/connection-tokens`),
+  obtenerPortalConfig: (id: number) => api.get(`/companies/${id}/portal-config`),
+  guardarPortalConfig: (id: number, d: Record<string, unknown>) =>
+    api.put(`/companies/${id}/portal-config`, d),
 };
 export const modulesApi = {
   listarActivos: () => api.get('/modules'),

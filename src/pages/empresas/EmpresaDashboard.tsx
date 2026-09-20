@@ -4,6 +4,12 @@ import { companiesApi, modulesApi } from '../../api';
 import { X, Pencil, Copy, Check, Link2, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Building2, Shield, Layers, Globe, ToggleLeft, ToggleRight, Hash, Briefcase, Activity, MoreHorizontal, Lock, Plug } from 'lucide-react';
 import { Spinner, BADGE, ConfirmDialog } from '../../components/ui';
 import { GenerateApiKeyButton } from './GenerateApiKeyButton';
+import {
+  PortalPerfilFields,
+  emptyPortalPerfil,
+  portalPerfilFromApi,
+  type PortalPerfilForm,
+} from '../../components/PortalPerfilFields';
 
 const formatRif = (value: string) => {
   let val = value.toUpperCase().replace(/[^VEJG0-9]/g, '');
@@ -58,6 +64,8 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
   const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'urls'>('overview');
   const [expandedModule, setExpandedModule] = useState<number | null>(null);
   const [expandedUrlGroup, setExpandedUrlGroup] = useState<string | null>(null);
+  const [empresaPortal, setEmpresaPortal] = useState<PortalPerfilForm>(emptyPortalPerfil());
+  const [savingPortal, setSavingPortal] = useState(false);
 
   const copyUrl = (url: string, subId: number) => {
     const doSet = () => { setCopiedUrl(subId); setTimeout(() => setCopiedUrl(null), 2000); };
@@ -91,6 +99,7 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
         const comp = c.data?.data || c.data;
         setCompany(comp);
         setForm({ nombre: comp.nombre, rif: comp.rif || '', tipo: comp.tipo || '' });
+        setEmpresaPortal(portalPerfilFromApi(comp.portalConfig));
       } else {
         toast('Empresa no encontrada', 'error');
         navigate('/empresas');
@@ -105,6 +114,28 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
   };
 
   useEffect(() => { load(); }, [id]);
+
+  const guardarPortalEmpresa = async () => {
+    if (!id) return;
+    setSavingPortal(true);
+    try {
+      await companiesApi.guardarPortalConfig(Number(id), {
+        centidad: empresaPortal.centidad || 'P',
+        citem: empresaPortal.citem || '80080',
+        cproductor: empresaPortal.cproductor || null,
+        cusuario: empresaPortal.cusuario || null,
+        resolverGestorPorEmail: empresaPortal.resolverGestorPorEmail,
+        ccanalaltIn: empresaPortal.ccanalaltIn || null,
+        cscanalaltIn: empresaPortal.cscanalaltIn || null,
+      });
+      toast('Canal portal guardado en base de datos', 'success');
+      load(false);
+    } catch (err: any) {
+      toast(err.response?.data?.message || 'Error al guardar canal portal', 'error');
+    } finally {
+      setSavingPortal(false);
+    }
+  };
 
   const guardarDetalles = async (e: FormEvent) => {
     e.preventDefault();
@@ -591,6 +622,21 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div
+              className="rounded-xl bg-white p-4"
+              style={{ border: '1px solid #EAECEF', boxShadow: '0 1px 3px rgba(12,19,58,0.04)' }}
+            >
+              <PortalPerfilFields value={empresaPortal} onChange={setEmpresaPortal} />
+              <button
+                type="button"
+                className="btn-primary w-full mt-3 text-xs"
+                disabled={savingPortal}
+                onClick={guardarPortalEmpresa}
+              >
+                {savingPortal ? <><Spinner size={14} /> Guardando…</> : 'Guardar canal portal (BD)'}
+              </button>
             </div>
 
             {/* Acción rápida URLs */}

@@ -3,6 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { usersApi, companiesApi, rolesApi } from '../../api';
 import { X } from 'lucide-react';
 import { Spinner, ConfirmDialog } from '../../components/ui';
+import {
+  PortalPerfilFields,
+  emptyPortalPerfil,
+  portalPerfilToPayload,
+  type PortalPerfilForm,
+} from '../../components/PortalPerfilFields';
 
 const formatNombre = (value: string) => {
   return value.replace(/[^a-zA-Z\sáéíóúÁÉÍÓÚñÑüÜ]/g, '').substring(0, 50);
@@ -19,6 +25,7 @@ export default function UsuarioCrear({ toast }: { toast: (m: string, t: 'success
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ nombre: '', email: '', roleId: '', empresaId: '' });
+  const [portalPerfil, setPortalPerfil] = useState<PortalPerfilForm>(emptyPortalPerfil());
   const [confirmData, setConfirmData] = useState<{ title?: string; msg: string; type?: 'primary' | 'danger'; action: () => void } | null>(null);
 
   useEffect(() => {
@@ -44,6 +51,8 @@ export default function UsuarioCrear({ toast }: { toast: (m: string, t: 'success
           if (dataToSend.roleId) dataToSend.roleId = parseInt(dataToSend.roleId, 10);
           if (dataToSend.empresaId) dataToSend.empresaId = parseInt(dataToSend.empresaId, 10);
           else dataToSend.empresaId = null;
+          const pp = portalPerfilToPayload(portalPerfil);
+          if (pp) dataToSend.portalPerfil = pp;
 
           await usersApi.crear(dataToSend);
           toast('Usuario creado exitosamente', 'success');
@@ -98,6 +107,8 @@ export default function UsuarioCrear({ toast }: { toast: (m: string, t: 'success
                 </select>
               </div>
             </div>
+
+            <PortalPerfilFields value={portalPerfil} onChange={setPortalPerfil} />
             
             <div className="pt-4 border-t border-slate-100 flex gap-3">
               <button type="button" className="btn-secondary flex-1" onClick={() => navigate('/usuarios')}>Cancelar</button>

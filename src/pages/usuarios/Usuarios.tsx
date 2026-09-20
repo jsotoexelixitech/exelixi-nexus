@@ -3,6 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { usersApi, rolesApi } from '../../api';
 import { Plus, Power, Pencil, X as XIcon, Save, RefreshCw } from 'lucide-react';
 import { Spinner, BADGE, ConfirmDialog } from '../../components/ui';
+import {
+  PortalPerfilFields,
+  emptyPortalPerfil,
+  portalPerfilFromApi,
+  portalPerfilToPayload,
+  type PortalPerfilForm,
+} from '../../components/PortalPerfilFields';
 
 const formatNombre = (value: string) => {
   return value.replace(/[^a-zA-Z\sáéíóúÁÉÍÓÚñÑüÜ]/g, '').substring(0, 50);
@@ -21,6 +28,7 @@ export default function Usuarios({ toast, user }: { toast: (m: string, t: 'succe
   
   const [editId, setEditId] = useState<string | number | null>(null);
   const [editForm, setEditForm] = useState({ nombre: '', email: '', roleId: '' });
+  const [editPortalPerfil, setEditPortalPerfil] = useState<PortalPerfilForm>(emptyPortalPerfil());
   const [savingEdit, setSavingEdit] = useState(false);
 
   const [confirmData, setConfirmData] = useState<{ title?: string; msg: string; type?: 'primary' | 'danger'; action: () => void } | null>(null);
@@ -60,6 +68,7 @@ export default function Usuarios({ toast, user }: { toast: (m: string, t: 'succe
       email: u.email || '',
       roleId: roleIdMatch
     });
+    setEditPortalPerfil(portalPerfilFromApi(u.portalPerfil));
   };
 
   const saveEdit = async (id: string | number) => {
@@ -75,6 +84,8 @@ export default function Usuarios({ toast, user }: { toast: (m: string, t: 'succe
         try {
           const dataToSend: any = { ...editForm };
           dataToSend.roleId = parseInt(dataToSend.roleId, 10);
+          const pp = portalPerfilToPayload(editPortalPerfil);
+          if (pp) dataToSend.portalPerfil = pp;
           
           await usersApi.actualizar(id.toString(), dataToSend);
           toast('Usuario actualizado exitosamente', 'success');
@@ -217,6 +228,9 @@ export default function Usuarios({ toast, user }: { toast: (m: string, t: 'succe
                                   {roles.map(r => <option key={r.id} value={r.id}>{r.nombre || r.name}</option>)}
                                 </select>
                               </div>
+                            </div>
+                            <div className="mb-4">
+                              <PortalPerfilFields value={editPortalPerfil} onChange={setEditPortalPerfil} />
                             </div>
                             <div className="flex justify-end gap-2">
                               <button type="button" className="btn-secondary text-xs px-4 py-2" onClick={() => setEditId(null)}>Cancelar</button>
