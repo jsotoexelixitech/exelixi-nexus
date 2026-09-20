@@ -845,7 +845,11 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
                   <Globe size={20} className="text-slate-400" />
                 </div>
                 <p className="font-bold text-sm text-slate-600">Sin URLs configuradas</p>
-                <p className="text-xs text-slate-400 mt-1">Agrega URLs base en el catálogo de submódulos.</p>
+                <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                  El submódulo debe tener <strong>URL pública</strong> en Módulos. Luego active el módulo
+                  y el submódulo en la pestaña Módulos de esta empresa; la URL con{' '}
+                  <code className="text-[10px]">nexus_token</code> aparecerá aquí.
+                </p>
               </div>
             ) : (
               <div className="divide-y" style={{ borderColor: '#EAECEF' }}>
