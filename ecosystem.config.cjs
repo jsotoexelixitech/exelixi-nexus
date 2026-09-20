@@ -1,9 +1,10 @@
 /**
  * PM2 — Exélixi Nexus Admin (producción)
  *
- * Sirve `dist/` con `serve` (SPA). La API va directo a VITE_API_URL del build.
+ * Sirve dist/ con vite preview (proxy /api → nexus-api local).
+ * Build cierrelmds: bash scripts/build-cierrelmds.sh
  *
- *   cd ~/nexus-admin && npm run build && pm2 start ecosystem.config.cjs
+ *   pm2 start ecosystem.config.cjs
  *   pm2 logs nexus-admin
  */
 const path = require('path');
@@ -14,8 +15,8 @@ module.exports = {
     {
       name: 'nexus-admin',
       cwd: ROOT,
-      script: 'serve',
-      args: '-s dist -l 5200',
+      script: 'node_modules/vite/bin/vite.js',
+      args: 'preview --host 0.0.0.0 --port 5200 --strictPort',
       instances: 1,
       exec_mode: 'fork',
       watch: false,
