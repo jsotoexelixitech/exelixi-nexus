@@ -64,7 +64,12 @@ type Props = {
   onChange: (next: PortalPerfilForm) => void;
 };
 
+/** Solo UI — API/BD portal siguen activos; poner true para mostrar el formulario. */
+export const PORTAL_LA_MUNDIAL_UI_VISIBLE = false;
+
 export function PortalPerfilFields({ value, onChange }: Props) {
+  if (!PORTAL_LA_MUNDIAL_UI_VISIBLE) return null;
+
   const set = (patch: Partial<PortalPerfilForm>) =>
     onChange({ ...value, ...patch });
 

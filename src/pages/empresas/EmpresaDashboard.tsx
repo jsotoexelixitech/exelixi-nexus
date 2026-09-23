@@ -6,6 +6,7 @@ import { Spinner, BADGE, ConfirmDialog } from '../../components/ui';
 import { GenerateApiKeyButton } from './GenerateApiKeyButton';
 import {
   PortalPerfilFields,
+  PORTAL_LA_MUNDIAL_UI_VISIBLE,
   emptyPortalPerfil,
   portalPerfilFromApi,
   type PortalPerfilForm,
@@ -624,20 +625,22 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
               </div>
             </div>
 
-            <div
-              className="rounded-xl bg-white p-4"
-              style={{ border: '1px solid #EAECEF', boxShadow: '0 1px 3px rgba(12,19,58,0.04)' }}
-            >
-              <PortalPerfilFields value={empresaPortal} onChange={setEmpresaPortal} />
-              <button
-                type="button"
-                className="btn-primary w-full mt-3 text-xs"
-                disabled={savingPortal}
-                onClick={guardarPortalEmpresa}
+            {PORTAL_LA_MUNDIAL_UI_VISIBLE && (
+              <div
+                className="rounded-xl bg-white p-4"
+                style={{ border: '1px solid #EAECEF', boxShadow: '0 1px 3px rgba(12,19,58,0.04)' }}
               >
-                {savingPortal ? <><Spinner size={14} /> Guardando…</> : 'Guardar canal portal (BD)'}
-              </button>
-            </div>
+                <PortalPerfilFields value={empresaPortal} onChange={setEmpresaPortal} />
+                <button
+                  type="button"
+                  className="btn-primary w-full mt-3 text-xs"
+                  disabled={savingPortal}
+                  onClick={guardarPortalEmpresa}
+                >
+                  {savingPortal ? <><Spinner size={14} /> Guardando…</> : 'Guardar canal portal (BD)'}
+                </button>
+              </div>
+            )}
 
             {/* Acción rápida URLs */}
             <button
