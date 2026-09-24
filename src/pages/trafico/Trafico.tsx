@@ -36,14 +36,18 @@ interface EmpresaTrafico {
   empresaId: number;
   empresaNombre: string;
   empresaRif: string;
+  /** Porcentaje sobre prima USD de cada póliza (0–100). */
   feeTransaccion: number;
   total: number;
+  sumaPrimas: number;
+  ingresoEstimado: number;
   porProducto: Record<string, number>;
   polizas: Poliza[];
 }
 
 interface TraficoData {
   totalEmisiones: number;
+  totalIngresoEstimado?: number;
   empresas: EmpresaTrafico[];
 }
 
@@ -85,19 +89,33 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
     try {
       const val = parseFloat(feeValue);
       if (isNaN(val) || val < 0 || val > 100) {
-        toast?.('La tarifa debe estar entre 0 y 100$', 'error');
+        toast?.('El fee debe estar entre 0% y 100%', 'error');
         return;
       }
       await api.put(`/companies/${empresaId}`, { feeTransaccion: val });
-      toast?.('Tarifa actualizada correctamente', 'success');
+      toast?.('Fee % actualizado correctamente', 'success');
       setEditingFeeId(null);
       cargar();
     } catch (err) {
-      toast?.('Error al guardar la tarifa', 'error');
+      toast?.('Error al guardar el fee', 'error');
     }
   };
 
-  const totalIngresos = data?.empresas.reduce((acc, emp) => acc + (emp.total * (emp.feeTransaccion || 0)), 0) || 0;
+  const totalIngresos =
+    data?.totalIngresoEstimado ??
+    data?.empresas.reduce((acc, emp) => {
+      const fee = emp.feeTransaccion || 0;
+      if (typeof emp.ingresoEstimado === 'number') return acc + emp.ingresoEstimado;
+      const primas =
+        emp.sumaPrimas ??
+        emp.polizas.reduce((s, p) => {
+          const jd = p.jsonData || {};
+          const m = Number(jd.monto ?? jd.mprimaext ?? 0);
+          return s + (Number.isFinite(m) && m > 0 ? m : 0);
+        }, 0);
+      return acc + primas * (fee / 100);
+    }, 0) ??
+    0;
 
   return (
     <div className="space-y-6">
@@ -300,7 +318,7 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
               </div>
               <div>
                 <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">
-                  Ingreso Estimado
+                  Ingreso Estimado (% prima)
                 </p>
                 <p
                   className="text-3xl font-bold text-emerald-600"
@@ -372,21 +390,22 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                       ))}
                     </div>
 
-                    {/* Fee de Transacción */}
+                    {/* Fee % sobre prima */}
                     <div className="flex flex-col items-end shrink-0" onClick={e => e.stopPropagation()}>
                       {editingFeeId === empresa.empresaId ? (
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-400 text-sm">$</span>
                           <input 
                             type="number"
                             min="0"
                             max="100"
+                            step="0.01"
                             className="input py-1 px-2 w-16 text-sm text-center"
                             value={feeValue}
                             onChange={(e) => setFeeValue(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && handleSaveFee(empresa.empresaId)}
                             autoFocus
                           />
+                          <span className="text-slate-400 text-sm">%</span>
                           <button 
                             className="btn-primary py-1 px-2 text-xs"
                             onClick={() => handleSaveFee(empresa.empresaId)}
@@ -407,13 +426,13 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                             setEditingFeeId(empresa.empresaId);
                             setFeeValue(String(empresa.feeTransaccion || 0));
                           }}
-                          title="Hacer clic para editar la tarifa por transacción"
+                          title="Fee % sobre la prima USD de cada póliza"
                         >
                           <p className="text-[10px] text-slate-400 uppercase tracking-wide group-hover:text-sky-500 flex items-center gap-1">
-                            Tarifa/Tx <span className="hidden group-hover:inline">✏️</span>
+                            Fee % <span className="hidden group-hover:inline">✏️</span>
                           </p>
                           <p className="font-bold text-sm" style={{ color: C.oxford }}>
-                            ${Number(empresa.feeTransaccion || 0).toFixed(2)}
+                            {Number(empresa.feeTransaccion || 0).toFixed(2)}%
                           </p>
                         </div>
                       )}
@@ -430,15 +449,26 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                       <p className="text-[10px] text-slate-400 uppercase tracking-wide">pólizas</p>
                     </div>
 
-                    {/* Ingreso Total Empresa */}
+                    {/* Ingreso Total Empresa = sumaPrimas × fee% */}
                     <div className="text-right shrink-0 ml-4 hidden sm:block">
                       <p
                         className="text-xl font-bold text-emerald-600"
                         style={{ fontFamily: 'var(--font-display)' }}
                       >
-                        ${(empresa.total * (empresa.feeTransaccion || 0)).toFixed(2)}
+                        ${(
+                          typeof empresa.ingresoEstimado === 'number'
+                            ? empresa.ingresoEstimado
+                            : (empresa.sumaPrimas || 0) * ((empresa.feeTransaccion || 0) / 100)
+                        ).toFixed(2)}
                       </p>
-                      <p className="text-[10px] text-emerald-600/70 uppercase tracking-wide">a facturar</p>
+                      <p className="text-[10px] text-emerald-600/70 uppercase tracking-wide">
+                        a facturar
+                      </p>
+                      {(empresa.sumaPrimas ?? 0) > 0 && (
+                        <p className="text-[9px] text-slate-400 mt-0.5">
+                          sobre ${(empresa.sumaPrimas || 0).toFixed(2)} prima
+                        </p>
+                      )}
                     </div>
 
                     {/* Toggle icon */}
@@ -474,6 +504,12 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                                 <th className="text-left py-2 px-4 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                                   Frecuencia
                                 </th>
+                                <th className="text-right py-2 px-4 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                                  Prima USD
+                                </th>
+                                <th className="text-right py-2 px-4 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
+                                  Fee
+                                </th>
                                 <th className="text-left py-2 px-4 text-[11px] font-bold uppercase text-slate-400 tracking-wider">
                                   Fecha
                                 </th>
@@ -485,6 +521,10 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                                 const jd = pol.jsonData || {};
                                 const prod = (jd.producto as string) || 'rcv';
                                 const freq = (jd.frecuencia as string) || '';
+                                const prima = Number(jd.monto ?? jd.mprimaext ?? 0);
+                                const primaOk = Number.isFinite(prima) && prima > 0 ? prima : 0;
+                                const feePol =
+                                  Math.round(primaOk * ((empresa.feeTransaccion || 0) / 100) * 100) / 100;
                                 return (
                                   <tr
                                     key={pol.id}
@@ -515,6 +555,12 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                                     </td>
                                     <td className="py-3 px-4 text-xs text-slate-500">
                                       {FREQ_LABEL[freq] || freq || '—'}
+                                    </td>
+                                    <td className="py-3 px-4 text-xs text-right text-slate-600 font-mono">
+                                      {primaOk > 0 ? `$${primaOk.toFixed(2)}` : '—'}
+                                    </td>
+                                    <td className="py-3 px-4 text-xs text-right font-mono text-emerald-600">
+                                      {primaOk > 0 ? `$${feePol.toFixed(2)}` : '—'}
                                     </td>
                                     <td className="py-3 px-4 text-xs text-slate-400">
                                       {new Date(pol.createdAt).toLocaleDateString('es-VE', {
