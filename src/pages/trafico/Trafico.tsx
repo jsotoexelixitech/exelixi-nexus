@@ -101,21 +101,35 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
     }
   };
 
+  const sumaPrimasEmpresa = (emp: EmpresaTrafico) => {
+    if (typeof emp.sumaPrimas === 'number' && emp.sumaPrimas > 0) {
+      return emp.sumaPrimas;
+    }
+    return emp.polizas.reduce((s, p) => {
+      const jd = p.jsonData || {};
+      const m = Number(jd.monto ?? jd.mprimaext ?? 0);
+      return s + (Number.isFinite(m) && m > 0 ? m : 0);
+    }, 0);
+  };
+
+  const ingresoEmpresa = (emp: EmpresaTrafico) => {
+    const fee = Number(emp.feeTransaccion) || 0;
+    const fromPrimas =
+      Math.round(sumaPrimasEmpresa(emp) * (fee / 100) * 100) / 100;
+    // Si el API ya mandó ingresoEstimado > 0 y coincide con el fee actual, úsalo;
+    // si viene 0 (API sin rebuild / fee viejo), recalcular desde primas.
+    if (
+      typeof emp.ingresoEstimado === 'number' &&
+      emp.ingresoEstimado > 0 &&
+      Math.abs(emp.ingresoEstimado - fromPrimas) < 0.02
+    ) {
+      return emp.ingresoEstimado;
+    }
+    return fromPrimas;
+  };
+
   const totalIngresos =
-    data?.totalIngresoEstimado ??
-    data?.empresas.reduce((acc, emp) => {
-      const fee = emp.feeTransaccion || 0;
-      if (typeof emp.ingresoEstimado === 'number') return acc + emp.ingresoEstimado;
-      const primas =
-        emp.sumaPrimas ??
-        emp.polizas.reduce((s, p) => {
-          const jd = p.jsonData || {};
-          const m = Number(jd.monto ?? jd.mprimaext ?? 0);
-          return s + (Number.isFinite(m) && m > 0 ? m : 0);
-        }, 0);
-      return acc + primas * (fee / 100);
-    }, 0) ??
-    0;
+    data?.empresas.reduce((acc, emp) => acc + ingresoEmpresa(emp), 0) ?? 0;
 
   return (
     <div className="space-y-6">
@@ -449,24 +463,20 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                       <p className="text-[10px] text-slate-400 uppercase tracking-wide">pólizas</p>
                     </div>
 
-                    {/* Ingreso Total Empresa = sumaPrimas × fee% */}
+                    {/* Ingreso Total Empresa = Σ (prima × fee%) */}
                     <div className="text-right shrink-0 ml-4 hidden sm:block">
                       <p
                         className="text-xl font-bold text-emerald-600"
                         style={{ fontFamily: 'var(--font-display)' }}
                       >
-                        ${(
-                          typeof empresa.ingresoEstimado === 'number'
-                            ? empresa.ingresoEstimado
-                            : (empresa.sumaPrimas || 0) * ((empresa.feeTransaccion || 0) / 100)
-                        ).toFixed(2)}
+                        ${ingresoEmpresa(empresa).toFixed(2)}
                       </p>
                       <p className="text-[10px] text-emerald-600/70 uppercase tracking-wide">
                         a facturar
                       </p>
-                      {(empresa.sumaPrimas ?? 0) > 0 && (
+                      {sumaPrimasEmpresa(empresa) > 0 && (
                         <p className="text-[9px] text-slate-400 mt-0.5">
-                          sobre ${(empresa.sumaPrimas || 0).toFixed(2)} prima
+                          sobre ${sumaPrimasEmpresa(empresa).toFixed(2)} prima
                         </p>
                       )}
                     </div>
