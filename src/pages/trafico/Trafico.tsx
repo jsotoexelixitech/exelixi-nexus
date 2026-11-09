@@ -20,6 +20,37 @@ const PRODUCT_COLORS: Record<string, string> = {
   desconocido:'#6B7280',
 };
 
+/** Nombre visible de las claves conocidas; el resto se muestra como viene (p. ej. «Salud Individual»). */
+const PRODUCT_LABEL: Record<string, string> = {
+  rcv: 'RCV',
+  funerario: 'Funerario',
+  patrimoniales: 'Patrimoniales',
+  desconocido: 'Sin producto',
+};
+
+/** El producto llega escrito de varias formas (rcv/RCV, funerario/Funerario) o vacío. */
+function claveProducto(raw: unknown): string {
+  const s = typeof raw === 'string' ? raw.trim() : '';
+  return s ? s.toLowerCase() : 'desconocido';
+}
+
+function etiquetaProducto(raw: unknown): string {
+  const clave = claveProducto(raw);
+  return PRODUCT_LABEL[clave] ?? String(raw).trim();
+}
+
+/** Une las variantes de un mismo producto y ordena de mayor a menor. */
+function agruparProductos(por: Record<string, number>) {
+  const mapa = new Map<string, { clave: string; etiqueta: string; cantidad: number }>();
+  for (const [raw, cnt] of Object.entries(por)) {
+    const clave = claveProducto(raw);
+    const item = mapa.get(clave) ?? { clave, etiqueta: etiquetaProducto(raw), cantidad: 0 };
+    item.cantidad += Number(cnt) || 0;
+    mapa.set(clave, item);
+  }
+  return [...mapa.values()].sort((a, b) => b.cantidad - a.cantidad);
+}
+
 const FREQ_LABEL: Record<string, string> = {
   A: 'Anual', S: 'Semestral', T: 'Trimestral', M: 'Mensual',
 };
@@ -268,6 +299,9 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                 >
                   {data.totalEmisiones}
                 </p>
+                <p className="text-white/60 text-[11px] leading-snug mt-1">
+                  Emisiones registradas en Nexus en el período, de todas las empresas (incluye empresas de prueba).
+                </p>
               </div>
             </div>
 
@@ -291,6 +325,9 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                   style={{ color: C.oxford, fontFamily: 'var(--font-display)' }}
                 >
                   {data.empresas.length}
+                </p>
+                <p className="text-slate-400 text-[11px] leading-snug mt-1">
+                  Empresas con al menos una póliza en el período.
                 </p>
               </div>
             </div>
@@ -316,6 +353,9 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                 >
                   {Math.round(data.totalEmisiones / data.empresas.length)}
                 </p>
+                <p className="text-slate-400 text-[11px] leading-snug mt-1">
+                  Total de pólizas entre empresas activas.
+                </p>
               </div>
             </div>
 
@@ -340,9 +380,21 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                 >
                   ${totalIngresos.toFixed(2)}
                 </p>
+                <p className="text-slate-400 text-[11px] leading-snug mt-1">
+                  Suma, por póliza, de la prima en USD × el fee % de su empresa.
+                </p>
               </div>
             </div>
           </div>
+
+          {/* Leyenda: qué significa cada dato de la fila de empresa */}
+          <p className="text-xs text-slate-500 leading-relaxed px-1">
+            <span className="font-semibold text-slate-600">En cada empresa:</span>{' '}
+            etiquetas = pólizas por producto («Sin producto»: emisiones registradas sin ese dato) ·{' '}
+            <span className="font-semibold">Fee %</span> = porcentaje que se factura sobre la prima (clic para editar) ·{' '}
+            <span className="font-semibold">Pólizas</span> = emisiones de la empresa ·{' '}
+            <span className="font-semibold">A facturar</span> = prima USD × fee %. Abre la fila para ver cada póliza.
+          </p>
 
           {/* Lista de empresas */}
           <div className="space-y-3">
@@ -389,17 +441,20 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                     </div>
 
                     {/* Chips de productos */}
-                    <div className="hidden sm:flex flex-wrap gap-1.5 max-w-[180px]">
-                      {Object.entries(empresa.porProducto).map(([prod, cnt]) => (
+                    <div
+                      className="hidden sm:flex flex-wrap gap-1.5 max-w-[180px]"
+                      title="Pólizas por producto"
+                    >
+                      {agruparProductos(empresa.porProducto).map(({ clave, etiqueta, cantidad }) => (
                         <span
-                          key={prod}
+                          key={clave}
                           className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full text-white"
                           style={{
-                            background: PRODUCT_COLORS[prod] ?? PRODUCT_COLORS.desconocido,
+                            background: PRODUCT_COLORS[clave] ?? PRODUCT_COLORS.desconocido,
                           }}
                         >
                           <Package size={9} />
-                          {prod.toUpperCase()} {cnt}
+                          {etiqueta.toUpperCase()} {cantidad}
                         </span>
                       ))}
                     </div>
@@ -529,7 +584,7 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                             <tbody>
                               {empresa.polizas.map((pol, idx) => {
                                 const jd = pol.jsonData || {};
-                                const prod = (jd.producto as string) || 'rcv';
+                                const prod = claveProducto(jd.producto);
                                 const freq = (jd.frecuencia as string) || '';
                                 const prima = Number(jd.monto ?? jd.mprimaext ?? 0);
                                 const primaOk = Number.isFinite(prima) && prima > 0 ? prima : 0;
@@ -557,7 +612,7 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                                           background: PRODUCT_COLORS[prod] ?? PRODUCT_COLORS.desconocido,
                                         }}
                                       >
-                                        {prod.toUpperCase()}
+                                        {etiquetaProducto(jd.producto).toUpperCase()}
                                       </span>
                                     </td>
                                     <td className="py-3 px-4 text-xs text-slate-600">
