@@ -300,7 +300,7 @@ export default function Trafico({ toast }: { toast?: (msg: string, type: 'succes
                   {data.totalEmisiones}
                 </p>
                 <p className="text-white/60 text-[11px] leading-snug mt-1">
-                  Emisiones registradas en Nexus en el período, de todas las empresas (incluye empresas de prueba).
+                  Emisiones registradas en Nexus en el período, de todas las empresas.
                 </p>
               </div>
             </div>
