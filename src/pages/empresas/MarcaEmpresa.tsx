@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, Check, ImagePlus, Palette, RotateCcw, Trash2, Eye, Info } from 'lucide-react';
+import { AlertTriangle, Check, ImagePlus, Palette, RotateCcw, Trash2, Eye, Info, Sparkles } from 'lucide-react';
 import { marcaApi, type MarcaEmpresaData } from '../../api';
 import { moduleApiBase } from '../../lib/app-base';
 import { ConfirmDialog, Spinner } from '../../components/ui';
+import { coloresDeLogo } from '../../lib/coloresDeLogo';
 
 /**
  * Marca de la empresa (logo y 3 colores) que toman los portales de los módulos (Condominio, Hogar…).
@@ -247,6 +248,8 @@ export default function MarcaEmpresa({
   const [guardando, setGuardando] = useState<'colores' | 'logo' | 'quitar' | 'restablecer' | null>(null);
   const [confirmar, setConfirmar] = useState<null | 'quitar' | 'restablecer'>(null);
   const archivoRef = useRef<HTMLInputElement>(null);
+  const [sugerencia, setSugerencia] = useState<null | { tipo: 'ok' | 'aviso'; texto: string; paleta?: string[] }>(null);
+  const [analizando, setAnalizando] = useState(false);
 
   const aplicar = (d: MarcaEmpresaData) => {
     setDatos(d);
@@ -287,11 +290,33 @@ export default function MarcaEmpresa({
     else if (normalizarHex(borradores[clave]) !== hex) setBorradores((b) => ({ ...b, [clave]: hex }));
   };
 
+  /** Propone los colores del logo (sin guardar): el usuario los revisa y pulsa «Guardar colores». */
+  const tomarColoresDelLogo = async (src: string) => {
+    setAnalizando(true);
+    try {
+      const r = await coloresDeLogo(src);
+      if ('motivo' in r) {
+        setSugerencia({ tipo: 'aviso', texto: r.motivo });
+        return;
+      }
+      setColores({ ...r.colores });
+      setBorradores({ ...r.colores });
+      setSugerencia({
+        tipo: 'ok',
+        texto: 'Tomamos estos colores del logo. Revísalos y pulsa «Guardar colores» para que los portales los usen.',
+        paleta: r.paleta,
+      });
+    } finally {
+      setAnalizando(false);
+    }
+  };
+
   const guardarColores = async () => {
     setGuardando('colores');
     try {
       const r = await marcaApi.guardarColores(empresaId, colores);
       aplicar(r.data.data);
+      setSugerencia(null);
       toast('Colores guardados. Los portales los toman en la próxima carga.', 'success');
     } catch (err) {
       toast(mensajeDe(err, 'No se pudieron guardar los colores.'), 'error');
@@ -309,6 +334,12 @@ export default function MarcaEmpresa({
       const r = await marcaApi.guardarLogo(empresaId, await leerComoDataUrl(archivo));
       aplicar(r.data.data);
       toast('Logo guardado.', 'success');
+      const local = URL.createObjectURL(archivo);
+      try {
+        await tomarColoresDelLogo(local);
+      } finally {
+        URL.revokeObjectURL(local);
+      }
     } catch (err) {
       toast(mensajeDe(err, 'No se pudo guardar el logo.'), 'error');
     } finally {
@@ -366,11 +397,11 @@ export default function MarcaEmpresa({
         <Tarjeta titulo="Logo" icono={<ImagePlus size={13} />}>
           <div className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-5 items-center">
             <div
-              className="h-36 rounded-xl grid place-items-center p-4"
+              className="relative h-36 rounded-xl grid place-items-center overflow-hidden"
               style={{ background: 'repeating-conic-gradient(#F1F3F8 0% 25%, #FFFFFF 0% 50%) 0 0 / 16px 16px', border: '1px dashed #CBD5E1' }}
             >
               {logoUrl ? (
-                <img src={logoUrl} alt={`Logo de ${empresaNombre}`} className="max-h-full max-w-full object-contain" />
+                <img src={logoUrl} alt={`Logo de ${empresaNombre}`} className="absolute inset-0 w-full h-full object-contain p-4" />
               ) : (
                 <span className="text-xs font-semibold text-slate-400 text-center">Sin logo propio</span>
               )}
@@ -404,10 +435,53 @@ export default function MarcaEmpresa({
           </div>
         </Tarjeta>
 
-        <Tarjeta titulo="Colores" icono={<Palette size={13} />}>
+        <Tarjeta
+          titulo="Colores"
+          icono={<Palette size={13} />}
+          extra={
+            logoUrl ? (
+              <button
+                type="button"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors bg-white hover:bg-orange-50 disabled:opacity-50"
+                style={{ border: '1px solid #FFD9BA', color: PUMPKIN }}
+                disabled={ocupado || analizando}
+                onClick={() => tomarColoresDelLogo(logoUrl)}
+              >
+                {analizando ? <Spinner size={12} /> : <Sparkles size={12} />}
+                <span className="hidden sm:inline">Tomar colores del logo</span>
+                <span className="sm:hidden">Del logo</span>
+              </button>
+            ) : undefined
+          }
+        >
           <p className="text-xs text-slate-500 mb-4">
             Cada portal calcula sus tonos claros, oscuros y degradados a partir de estos tres. Un color vacío usa el de cada aplicación.
           </p>
+          {analizando && (
+            <p className="mb-4 flex items-center gap-2 text-xs text-slate-500">
+              <Spinner size={12} /> Analizando los colores del logo…
+            </p>
+          )}
+          {sugerencia && !analizando && (
+            <div
+              className="mb-4 rounded-lg px-3 py-2.5 text-xs"
+              style={sugerencia.tipo === 'ok' ? { background: '#ECFDF5', color: '#065F46' } : { background: '#FFFBEB', color: '#92400E' }}
+              role="status"
+            >
+              <p className="flex items-start gap-2 font-semibold">
+                {sugerencia.tipo === 'ok' ? <Sparkles size={14} className="shrink-0 mt-px" /> : <AlertTriangle size={14} className="shrink-0 mt-px" />}
+                {sugerencia.texto}
+              </p>
+              {sugerencia.paleta?.length ? (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pl-6">
+                  <span className="text-[11px] opacity-80">En el logo:</span>
+                  {sugerencia.paleta.map((hex) => (
+                    <span key={hex} title={hex} className="w-5 h-5 rounded-md" style={{ background: hex, border: '1px solid rgba(0,0,0,0.08)' }} />
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          )}
           <div>
             {CAMPOS.map((c) => (
               <CampoColor
@@ -434,7 +508,10 @@ export default function MarcaEmpresa({
               type="button"
               className="btn-secondary text-xs"
               disabled={!cambiado || ocupado}
-              onClick={() => aplicar(datos ?? ({ empresaId } as MarcaEmpresaData))}
+              onClick={() => {
+                aplicar(datos ?? ({ empresaId } as MarcaEmpresaData));
+                setSugerencia(null);
+              }}
             >
               Descartar cambios
             </button>
