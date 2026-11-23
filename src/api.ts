@@ -55,6 +55,26 @@ export const companiesApi = {
   guardarPortalConfig: (id: number, d: Record<string, unknown>) =>
     api.put(`/companies/${id}/portal-config`, d),
 };
+/** Marca (logo y colores) de una empresa para los portales de los módulos. */
+export type MarcaEmpresaData = {
+  empresaId: number;
+  colorPrincipal: string | null;
+  colorSecundario: string | null;
+  colorTerciario: string | null;
+  logoUrl: string | null;
+  logoTamano: number | null;
+  actualizadoPor: string | null;
+  actualizadoAt: string | null;
+};
+export const marcaApi = {
+  obtener: (empresaId: number) => api.get<{ data: MarcaEmpresaData }>(`/companies/${empresaId}/marca`),
+  guardarColores: (empresaId: number, d: { colorPrincipal: string | null; colorSecundario: string | null; colorTerciario: string | null }) =>
+    api.put<{ data: MarcaEmpresaData }>(`/companies/${empresaId}/marca`, d),
+  guardarLogo: (empresaId: number, logo: string) =>
+    api.put<{ data: MarcaEmpresaData }>(`/companies/${empresaId}/marca/logo`, { logo }),
+  quitarLogo: (empresaId: number) => api.delete<{ data: MarcaEmpresaData }>(`/companies/${empresaId}/marca/logo`),
+  restablecer: (empresaId: number) => api.delete<{ data: MarcaEmpresaData }>(`/companies/${empresaId}/marca`),
+};
 export const modulesApi = {
   listarActivos: () => api.get('/modules'),
   listarTodos: () => api.get('/modules/all'),

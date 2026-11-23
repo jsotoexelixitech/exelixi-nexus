@@ -1,9 +1,10 @@
 import React, { useState, useEffect, FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { companiesApi, modulesApi } from '../../api';
-import { X, Pencil, Copy, Check, Link2, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Building2, Shield, Layers, Globe, ToggleLeft, ToggleRight, Hash, Briefcase, Activity, MoreHorizontal, Lock, Plug } from 'lucide-react';
+import { X, Pencil, Copy, Check, Link2, ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Building2, Shield, Layers, Globe, ToggleLeft, ToggleRight, Hash, Briefcase, Activity, MoreHorizontal, Lock, Plug, Palette } from 'lucide-react';
 import { Spinner, BADGE, ConfirmDialog } from '../../components/ui';
 import { GenerateApiKeyButton } from './GenerateApiKeyButton';
+import MarcaEmpresa from './MarcaEmpresa';
 import {
   PortalPerfilFields,
   PORTAL_LA_MUNDIAL_UI_VISIBLE,
@@ -62,7 +63,7 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
   const [confirmData, setConfirmData] = useState<{ title?: string; msg: string; type?: 'primary' | 'danger'; action: () => void } | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<number | null>(null);
   const [showUrlPanel, setShowUrlPanel] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'urls'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'modules' | 'urls' | 'marca'>('overview');
   const [expandedModule, setExpandedModule] = useState<number | null>(null);
   const [expandedUrlGroup, setExpandedUrlGroup] = useState<string | null>(null);
   const [empresaPortal, setEmpresaPortal] = useState<PortalPerfilForm>(emptyPortalPerfil());
@@ -404,20 +405,21 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
           TABS · Pills con relleno Pumpkin al activarse
       ═══════════════════════════════════════════════════════════════════════ */}
       <div
-        className="flex items-center gap-1 mb-5 p-1 rounded-xl"
+        className="grid grid-cols-2 sm:flex sm:items-center gap-1 mb-5 p-1 rounded-xl"
         style={{ background: '#F1F3F8', border: '1px solid #EAECEF' }}
       >
         {[
           { id: 'overview', label: 'General',         icon: <Building2 size={13} /> },
           { id: 'modules',  label: 'Módulos',         icon: <Layers size={13} />, count: modulosActivos },
           { id: 'urls',     label: 'URLs de Acceso',  icon: <Globe size={13} />, count: subsActivosEmpresa },
+          { id: 'marca',    label: 'Marca',           icon: <Palette size={13} /> },
         ].map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all"
+              className="sm:flex-initial whitespace-nowrap flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all"
               style={isActive
                 ? {
                     background: '#FFFFFF',
@@ -673,6 +675,11 @@ export default function EmpresaDashboard({ toast }: { toast: (m: string, t: 'suc
             </button>
           </div>
         </div>
+      )}
+
+      {/* ━━━ TAB: MARCA ━━━ Logo y colores que toman los portales de los módulos */}
+      {activeTab === 'marca' && company && (
+        <MarcaEmpresa empresaId={Number(company.id)} empresaNombre={company.nombre} toast={toast} />
       )}
 
       {/* ━━━ TAB: MÓDULOS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
